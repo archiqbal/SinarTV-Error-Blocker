@@ -1,0 +1,62 @@
+
+name: Build SinarTV Error Blocker from ZIP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'SinarTV_Error_Blocker_SIAP_BUILD_GITHUB.zip'
+      - '.github/workflows/build-sinartv-error-blocker-from-zip.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Ambil file dari GitHub
+        uses: actions/checkout@v4
+
+      - name: Siapkan Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Siapkan Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Siapkan Android SDK 35
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Ekstrak ZIP source SinarTV
+        run: |
+          test -s SinarTV_Error_Blocker_SIAP_BUILD_GITHUB.zip
+          mkdir -p project
+          unzip -q SinarTV_Error_Blocker_SIAP_BUILD_GITHUB.zip -d project
+          test -f project/app/build.gradle
+          test -f project/settings.gradle
+
+      - name: Buat APK
+        run: gradle --no-daemon -p project assembleDebug
+
+      - name: Verifikasi APK
+        run: test -s project/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Simpan APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SinarTV-Error-Blocker-APK
+          path: project/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
